@@ -51,6 +51,10 @@ def squeeze_and_set_time(ds, const):
     #get time from filename
     t = int(ds.encoding["source"][-13:-3]) * const.dt 
     ds = ds.assign_coords({"x" : const.x, "y" : const.y, "z" : const.z, "t" : [t]})#, "Y", "Z", "T"])
-    #TODO: read puddle
-    #ds_puddle = xr.open_dataset(datadir + "timestep0000012000.h5", group="/puddle/")
+    #read puddle
+    ds_puddle = xr.open_dataset(ds.encoding["source"], group="/puddle/")
+    ds_puddle = ds_puddle.assign(ds_puddle.attrs) # convert data stored in attributes to variables
+    for name in ds_puddle.attrs:
+        ds_puddle = ds_puddle.rename({name : "puddle_"+name}) # rename variables to indicate that this is puddle
+    ds = ds.merge(ds_puddle) # ds_puddle attributes are dropped on merge (thats good)
     return ds
