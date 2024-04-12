@@ -46,7 +46,6 @@ def load_timesteps(datadir, const):
         except:
             continue
     _squeeze_and_set_time = partial(squeeze_and_set_time, const=const, drop_DSD=True)
-    print(filenames)
     return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time)
 
 
@@ -73,7 +72,6 @@ def squeeze_and_set_time(ds, const, drop_DSD):
     ds = ds.expand_dims("t")
     #get time from filename
     t = np.float32(ds.encoding["source"][-13:-3]) * const.dt 
-    print(t, np.float32(ds.encoding["source"][-13:-3]))
     
     ds = ds.assign_coords({"x" : const.x, "y" : const.y, "z" : const.z, "t" : [t]})#, "Y", "Z", "T"])
     #read puddle
