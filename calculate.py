@@ -9,7 +9,8 @@ def calc_all(ds):
     .pipe(calc_r_sigma) \
     .pipe(calc_na) \
     .pipe(calc_nc) \
-    .pipe(calc_nr)
+    .pipe(calc_nr) \
+    .pipe(calc_r_m6)
 
 # cloud mixing ratio [kg/kg]
 def calc_rc(ds):
@@ -51,3 +52,7 @@ def calc_nc(ds):
 # number concentration of rain drops [1/m3]
 def calc_nr(ds):
     return ds.assign(nr=lambda x: ds.rain_rw_mom0 *ds.rhod)
+    
+# 6th mooment of droplet radius[m^6/m^3]
+def calc_r_m6(ds):
+    return ds.assign(r_m6=lambda x: ds.all_rw_mom6 *ds.rhod)

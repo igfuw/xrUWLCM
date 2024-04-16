@@ -8,13 +8,18 @@ import numpy as np
 def load_outdir(datadir):
     const = load_const(datadir)
     data = xr.merge([const, load_timesteps(datadir, const)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
-    data_DSD = load_DSD(datadir, const).assign(rhod=const.rhod).chunk({"t" : 1}) #ditto
+    data_DSD = xr.merge([const, load_DSD(datadir, const)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
+    #data_DSD = load_DSD(datadir, const).assign(rhod=const.rhod) \
+    #                                   .assign(out_wet_lft_edges=const.out_wet_lft_edges) \
+    #                                   .assign(out_wet_rgt_edges=const.out_wet_rgt_edges) \
+    #                                   .chunk({"t" : 1}) 
     return data, data_DSD 
 
 def load_const(datadir):
     const = xr.open_dataset(datadir + "const.h5")
+    # xe,ye,ze are positions of cell edges
     const = const.rename({"phony_dim_0" : "x", "phony_dim_1" : "y", "phony_dim_2" : "z", "phony_dim_3" : "t", \
-                          "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze"}) # positions of cell edges
+                          "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze", "phony_dim_7" : "outbins_wet"}) 
     #time coordinates
     const = const.assign_coords(t=("t",const.T.values))
     #coordinates of cell edges
@@ -68,7 +73,10 @@ def load_DSD(datadir, const):
 
 def squeeze_and_set_time(ds, const, drop_DSD):
     ds = ds.rename({"phony_dim_0" : "x", "phony_dim_1" : "y", "phony_dim_2" : "z"})
-#    ds = ds.squeeze("phony_dim_3") # surface fluxes are 3D arrays with len(z)=1, convert to 2D arrays
+    try:
+        ds = ds.squeeze("phony_dim_3") # surface fluxes are 3D arrays with len(z)=1, convert to 2D arrays
+    except:
+        pass
     ds = ds.expand_dims("t")
     #get time from filename
     t = np.float32(ds.encoding["source"][-13:-3]) * const.dt 

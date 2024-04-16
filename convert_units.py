@@ -9,6 +9,7 @@ def convert_units(ds):
         "na" : 1e-6, # to [1/cc]
         "nc" : 1e-6, # to [1/cc]
         "nr" : 1e-6, # to [1/cc]
+        "r_m6" : 1e18, # to [mm^6/m^3]
     }
 
     for m in multiplier:
