@@ -2,6 +2,8 @@ def convert_units(ds):
     multiplier = {
         "qc" : 1e3, # to [g/m3]
         "qr" : 1e3, # to [g/m3]
+        "qa" : 1e3, # to [g/m3]
+        "qt" : 1e3, # to [g/m3]
         "rc" : 1e3, # to [g/kg]
         "rr" : 1e3, # to [g/kg]
         "r_mean" : 1e6, # to [um]
