@@ -19,7 +19,10 @@ def load_const(datadir):
     const = xr.open_dataset(datadir + "const.h5")
     # xe,ye,ze are positions of cell edges
     const = const.rename({"phony_dim_0" : "x", "phony_dim_1" : "y", "phony_dim_2" : "z", "phony_dim_3" : "t", \
-                          "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze", "phony_dim_7" : "outbins_wet"}) 
+                          "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze"})
+    #output bins if applicable
+    if const.microphysics == "super-droplets":
+        const = const.rename({"phony_dim_7" : "outbins_wet"})         
     #time coordinates
     const = const.assign_coords(t=("t",const.T.values))
     #coordinates of cell edges
@@ -32,6 +35,7 @@ def load_const(datadir):
   
     const = const.assign_attrs(datadir=datadir)
 
+    
     #merge all groups into a single dataset
     for grname in ["rt_params", "ForceParameters", "MPI details", "advection", "git_revisions", "lgrngn", "misc", "piggy", "prs", "rhs", "sgs", "user_params", "vip"]:
         try:
@@ -72,11 +76,24 @@ def load_DSD(datadir, const):
 
 
 def squeeze_and_set_time(ds, const, drop_DSD):
-    ds = ds.rename({"phony_dim_0" : "x", "phony_dim_1" : "y", "phony_dim_2" : "z"})
-    try:
-        ds = ds.squeeze("phony_dim_3") # surface fluxes are 3D arrays with len(z)=1, convert to 2D arrays
-    except:
+    ds = ds.rename({"phony_dim_0" : "x", "phony_dim_1" : "y"})
+
+    #order of phony dims can depend on micro used, e.g. in blk_1m latent_heat_flux is the first array, hence phony_dim_2 has size 1 and z is phony_dim_3
+    if ds.phony_dim_2.size == 1:
+      ds = ds.rename({"phony_dim_3" : "z"})
+      try:
+        ds = ds.squeeze("phony_dim_2", drop=True) # surface fluxes are 3D arrays with len(z)=1, convert to 2D arrays
+      except:
         pass
+            
+    elif ds.phony_dim_3.size == 1:
+      ds = ds.rename({"phony_dim_2" : "z"})
+      try:
+        ds = ds.squeeze("phony_dim_3", drop=True) # surface fluxes are 3D arrays with len(z)=1, convert to 2D arrays
+      except:
+        pass       
+
+
     ds = ds.expand_dims("t")
     #get time from filename
     t = np.float32(ds.encoding["source"][-13:-3]) * const.dt 
