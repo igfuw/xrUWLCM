@@ -35,7 +35,7 @@ def load_const(datadir):
   
     const = const.assign_attrs(datadir=datadir)
 
-    
+
     #merge all groups into a single dataset
     for grname in ["rt_params", "ForceParameters", "MPI details", "advection", "git_revisions", "lgrngn", "misc", "piggy", "prs", "rhs", "sgs", "user_params", "vip"]:
         try:
@@ -70,7 +70,10 @@ def load_DSD(datadir, const):
         except:
             continue
     _squeeze_and_set_time = partial(squeeze_and_set_time, const=const, drop_DSD=False)
-    return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time)
+    if len(filenames)>0:
+      return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time)
+    else:
+      return xr.Dataset()
     #_squeeze_and_set_time = partial(squeeze_and_set_time, const=const)
     #return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time)
 
