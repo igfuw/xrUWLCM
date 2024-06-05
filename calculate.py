@@ -8,6 +8,7 @@ L_evap = 2264.76e3 # latent heat of evaporation [J/kg]
 def calc_all(ds):
     return calc_rc(ds) \
     .pipe(calc_rr) \
+    .pipe(calc_rl) \
     .pipe(calc_rt) \
     .pipe(calc_r_mean) \
     .pipe(calc_r_sigma) \
@@ -40,12 +41,19 @@ def calc_rr(ds):
     else:
         return ds # with bulk micro, ds already contains rr
     
+# liquid water mixing ratio [kg/kg]
+def calc_rl(ds):
+    if ds.microphysics == "super-droplets":
+        return ds.assign(rl=lambda x: (x.rain_rw_mom3 + x.aerosol_rw_mom3 + x.cloud_rw_mom3) * 4./3. * np.pi * 1e3)
+    else:
+        return ds.assign(rl=lambda x: x.rc + x.rr)
+        
 # total water mixing ratio [kg/kg]
 def calc_rt(ds):
     if ds.microphysics == "super-droplets":
-        return ds.assign(qt=lambda x: (x.rain_rw_mom3 + x.aerosol_rw_mom3 + x.cloud_rw_mom3) * 4./3. * np.pi * 1e3)
+        return ds.assign(rt=lambda x: x.rv + (x.rain_rw_mom3 + x.aerosol_rw_mom3 + x.cloud_rw_mom3) * 4./3. * np.pi * 1e3)
     else:
-        return ds.assign(qt=lambda x: x.rc + x.rr)
+        return ds.assign(rt=lambda x: x.rv + x.rc + x.rr)
     
 # number concentration per mass of air of all hydrometeors [1/kg]
 def calc_nt(ds):
@@ -86,7 +94,7 @@ def calc_nc(ds):
     elif ds.microphysics == 'single-moment bulk':
         return ds.assign(nc=np.NaN)
     elif ds.microphysics == 'double-moment bulk':
-        return ds.assign(nc=lambda x: x.nc *x.rhod)
+        return ds
     
 # number concentration of rain drops [1/kg]
 def calc_nr(ds):
@@ -95,7 +103,7 @@ def calc_nr(ds):
     elif ds.microphysics == 'single-moment bulk':
         return ds.assign(nr=np.NaN)
     elif ds.microphysics == 'double-moment bulk':
-        return ds.assign(nr=lambda x: x.nr *x.rhod)
+        return ds
     
 # 6th mooment of droplet radius[m^6/m^3]
 def calc_r_m6(ds):
