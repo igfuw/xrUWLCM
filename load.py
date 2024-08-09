@@ -22,7 +22,10 @@ def load_const(datadir):
                           "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze"})
     #output bins if applicable
     if const.microphysics == "super-droplets":
-        const = const.rename({"phony_dim_7" : "outbins_wet"})         
+        try:
+            const = const.rename({"phony_dim_7" : "outbins_wet"})         
+        except:
+            pass
     #time coordinates
     const = const.assign_coords(t=("t",const.T.values))
     #coordinates of cell edges
