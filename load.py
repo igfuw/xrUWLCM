@@ -16,7 +16,7 @@ def load_outdir(datadir):
     return data, data_DSD 
 
 def load_const(datadir):
-    const = xr.open_dataset(datadir + "const.h5")
+    const = xr.open_dataset(datadir + "const.h5", engine='h5netcdf', phony_dims='sort')
     # xe,ye,ze are positions of cell edges
     const = const.rename({"phony_dim_0" : "x", "phony_dim_1" : "y", "phony_dim_2" : "z", "phony_dim_3" : "t", \
                           "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze"})
@@ -42,7 +42,7 @@ def load_const(datadir):
     #merge all groups into a single dataset
     for grname in ["rt_params", "ForceParameters", "MPI details", "advection", "git_revisions", "lgrngn", "misc", "piggy", "prs", "rhs", "sgs", "user_params", "vip"]:
         try:
-            const = const.merge(xr.open_dataset(datadir + "const.h5", group="/"+grname+"/"), combine_attrs="no_conflicts")
+            const = const.merge(xr.open_dataset(datadir + "const.h5", group="/"+grname+"/", engine='h5netcdf', phony_dims='sort'), combine_attrs="no_conflicts")
         except:
             print("Group " + grname + " not found in " + datadir + "const.h5")
     return const
@@ -53,12 +53,12 @@ def load_timesteps(datadir, const):
     for t in const.T.values:
         filename=datadir + "timestep"+str(int(t / (const.dt))).zfill(10)+".h5"
         try:
-            xr.open_dataset(filename)
+            xr.open_dataset(filename, engine='h5netcdf', phony_dims='sort')
             filenames.append(filename)
         except:
             continue
     _squeeze_and_set_time = partial(squeeze_and_set_time, const=const, drop_DSD=True)
-    return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time)
+    return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time, engine='h5netcdf', phony_dims='sort')
 
 
 #load size spectra
@@ -67,14 +67,14 @@ def load_DSD(datadir, const):
     for t in const.T.values:
         filename=datadir + "timestep"+str(int(t / (const.dt))).zfill(10)+".h5"
         try:
-            ds = xr.open_dataset(filename)
+            ds = xr.open_dataset(filename, engine='h5netcdf', phony_dims='sort')
             if 'rw_rng000_mom0' in ds.variables:
                 filenames.append(filename)
         except:
             continue
     _squeeze_and_set_time = partial(squeeze_and_set_time, const=const, drop_DSD=False)
     if len(filenames)>0:
-      return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time)
+      return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time, engine='h5netcdf', phony_dims='sort')
     else:
       return xr.Dataset()
     #_squeeze_and_set_time = partial(squeeze_and_set_time, const=const)
@@ -106,7 +106,7 @@ def squeeze_and_set_time(ds, const, drop_DSD):
     
     ds = ds.assign_coords({"x" : const.x, "y" : const.y, "z" : const.z, "t" : [t]})#, "Y", "Z", "T"])
     #read puddle
-    ds_puddle = xr.open_dataset(ds.encoding["source"], group="/puddle/")
+    ds_puddle = xr.open_dataset(ds.encoding["source"], group="/puddle/", engine='h5netcdf', phony_dims='sort')
     ds_puddle = ds_puddle.assign(ds_puddle.attrs) # convert data stored in attributes to variables
     for name in ds_puddle.attrs:
         ds_puddle = ds_puddle.rename({name : "puddle_"+name}) # rename variables to indicate that this is puddle

@@ -119,7 +119,7 @@ def calc_cloud_top(ds, cond):
     return ds.assign(ct_z=lambda x: x.z.where(cond).idxmax(dim='z'))
     
 def calc_surface_area(ds):
-    return ds.assign(surf_area = (ds.dims["x"]-1) * ds.di * (ds.dims["y"]-1) * ds.dj)
+    return ds.assign(surf_area = (ds.sizes["x"]-1) * ds.di * (ds.sizes["y"]-1) * ds.dj)
 
 def calc_dv(ds): # TODO: rewrite in a more consistent way
     dx=xr.zeros_like(ds.G)# just to get the shape..
@@ -146,6 +146,6 @@ def calc_precip_flux(ds):
         # in bulk micro, precip_rate is the difference between influx and outflux
         prflux = ds.precip_rate.copy()
         prflux[:,:,-1] *= ds.rhod[-1]
-        for k in np.arange(ds.dims["z"]-2, 0, -1):
+        for k in np.arange(ds.sizes["z"]-2, 0, -1):
             prflux[k] = prflux[k+1] + prflux[k] * ds.rhod[k]
         return ds.assign(prflux = prflux * -1 * ds.dk * L_evap)

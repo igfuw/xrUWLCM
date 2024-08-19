@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def plot_CFAD(data, varname, cond=True, xbins=None, **kwargs):
-    ds = data[varname].where(cond, np.NaN)
+    ds = data[varname].where(cond, np.nan)
     try:
         if xbins==None:
             xbins = np.linspace(ds.min(), ds.max(), 200)
@@ -12,7 +12,7 @@ def plot_CFAD(data, varname, cond=True, xbins=None, **kwargs):
     zbins = np.arange(0, data.z[-1], data.dz)
     hist = histogram( data.z, ds, bins=[zbins, xbins])#, density=True)
     hist = hist / np.sum(hist).values * 100
-    hist = np.where(hist==0, np.NaN, hist) # set empty bins to 0 so that they are plotted in white
+    hist = np.where(hist==0, np.nan, hist) # set empty bins to 0 so that they are plotted in white
     #plt.imshow(hist, cmap='rainbow', origin='lower', aspect='auto', extent=(xbins[0], xbins[-1], zbins[0], zbins[-1]), **kwargs) # cmaps: hot_r, rainbow, gist_stern_r, jet
     #plt.imshow(hist, cmap='rainbow', origin='lower', aspect='auto', extent=(np.log10(xbins[0]), np.log10(xbins[-1]), zbins[0], zbins[-1]), **kwargs) # cmaps: hot_r, rainbow, gist_stern_r, jet
     plt.pcolormesh(xbins, zbins, hist, cmap='rainbow', **kwargs) # cmaps: hot_r, rainbow, gist_stern_r, jet
@@ -26,7 +26,7 @@ def plot_CFAD(data, varname, cond=True, xbins=None, **kwargs):
     mean = ds.mean(["x","y","t"], skipna=True)
     #mean = ds.mean(["x"], skipna=True)
     #print('mean: ',mean.values)
-    quants = ds.chunk(dict(t=-1)).quantile([0.1,0.9],["x","y","t"], skipna=True)
+    quants = ds.chunk(dict(t=-1)).chunk(dict(x=-1)).quantile([0.1,0.9],["x","y","t"], skipna=True)
     #xerr = [mean-quants[0], quants[1]-mean]
     #print(quants)
     #plt.errorbar(mean, ds.z, xerr=xerr, fmt='.', color='black')#quants)
