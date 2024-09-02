@@ -5,18 +5,20 @@ import numpy as np
 # returns:
 # data - constants and all timesteps with DSD vars dropped
 # data_DSD - only timesteps that have DSD vars, from constants only rhod to facilitate calculations of derived variables
-def load_outdir(datadir):
-    const = load_const(datadir)
-    data = xr.merge([const, load_timesteps(datadir, const)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
-    data_DSD = xr.merge([const, load_DSD(datadir, const)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
+def load_outdir(datadir, engine=None):
+    const = load_const(datadir, engine)
+    data = xr.merge([const, load_timesteps(datadir, const, engine)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
+    data_DSD = xr.merge([const, load_DSD(datadir, const, engine)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
     #data_DSD = load_DSD(datadir, const).assign(rhod=const.rhod) \
     #                                   .assign(out_wet_lft_edges=const.out_wet_lft_edges) \
     #                                   .assign(out_wet_rgt_edges=const.out_wet_rgt_edges) \
     #                                   .chunk({"t" : 1}) 
     return data, data_DSD 
 
-def load_const(datadir):
-    const = xr.open_dataset(datadir + "const.h5", engine='h5netcdf', phony_dims='sort')
+def load_const(datadir, engine=None):
+    open_dataset_kwargs = {'phony_dims': 'sort'} if engine=='h5netcdf' else {} # h5netcdf-specific option
+    const = xr.open_dataset(datadir + "const.h5", engine=engine, **open_dataset_kwargs)
+
     # xe,ye,ze are positions of cell edges
     const = const.rename({"phony_dim_0" : "x", "phony_dim_1" : "y", "phony_dim_2" : "z", "phony_dim_3" : "t", \
                           "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze"})
@@ -42,46 +44,49 @@ def load_const(datadir):
     #merge all groups into a single dataset
     for grname in ["rt_params", "ForceParameters", "MPI details", "advection", "git_revisions", "lgrngn", "misc", "piggy", "prs", "rhs", "sgs", "user_params", "vip"]:
         try:
-            const = const.merge(xr.open_dataset(datadir + "const.h5", group="/"+grname+"/", engine='h5netcdf', phony_dims='sort'), combine_attrs="no_conflicts")
+            const = const.merge(xr.open_dataset(datadir + "const.h5", group="/"+grname+"/", engine=engine, **open_dataset_kwargs), combine_attrs="no_conflicts")
         except:
             print("Group " + grname + " not found in " + datadir + "const.h5")
     return const
 
 
-def load_timesteps(datadir, const):
+def load_timesteps(datadir, const, engine=None):
+    open_dataset_kwargs = {'phony_dims': 'sort'} if engine=='h5netcdf' else {} # h5netcdf-specific option
     filenames = []
     for t in const.T.values:
         filename=datadir + "timestep"+str(int(t / (const.dt))).zfill(10)+".h5"
         try:
-            xr.open_dataset(filename, engine='h5netcdf', phony_dims='sort')
+            xr.open_dataset(filename, engine=engine, **open_dataset_kwargs)
             filenames.append(filename)
         except:
             continue
-    _squeeze_and_set_time = partial(squeeze_and_set_time, const=const, drop_DSD=True)
-    return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time, engine='h5netcdf', phony_dims='sort')
+    _squeeze_and_set_time = partial(squeeze_and_set_time, const=const, drop_DSD=True, engine=engine)
+    return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time, engine=engine, **open_dataset_kwargs)
 
 
 #load size spectra
-def load_DSD(datadir, const):
+def load_DSD(datadir, const, engine=None):
+    open_dataset_kwargs = {'phony_dims': 'sort'} if engine=='h5netcdf' else {} # h5netcdf-specific option
     filenames = []
     for t in const.T.values:
         filename=datadir + "timestep"+str(int(t / (const.dt))).zfill(10)+".h5"
         try:
-            ds = xr.open_dataset(filename, engine='h5netcdf', phony_dims='sort')
+            ds = xr.open_dataset(filename, engine=engine, **open_dataset_kwargs)
             if 'rw_rng000_mom0' in ds.variables:
                 filenames.append(filename)
         except:
             continue
-    _squeeze_and_set_time = partial(squeeze_and_set_time, const=const, drop_DSD=False)
+    _squeeze_and_set_time = partial(squeeze_and_set_time, const=const, drop_DSD=False, engine=engine)
     if len(filenames)>0:
-      return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time, engine='h5netcdf', phony_dims='sort')
+      return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time, engine=engine, **open_dataset_kwargs)
     else:
       return xr.Dataset()
     #_squeeze_and_set_time = partial(squeeze_and_set_time, const=const)
     #return xr.open_mfdataset(filenames, parallel=False, preprocess=_squeeze_and_set_time)
 
 
-def squeeze_and_set_time(ds, const, drop_DSD):
+def squeeze_and_set_time(ds, const, drop_DSD, engine=None):
+    open_dataset_kwargs = {'phony_dims': 'sort'} if engine=='h5netcdf' else {} # h5netcdf-specific option
     ds = ds.rename({"phony_dim_0" : "x", "phony_dim_1" : "y"})
 
     #order of phony dims can depend on micro used, e.g. in blk_1m latent_heat_flux is the first array, hence phony_dim_2 has size 1 and z is phony_dim_3
@@ -106,7 +111,7 @@ def squeeze_and_set_time(ds, const, drop_DSD):
     
     ds = ds.assign_coords({"x" : const.x, "y" : const.y, "z" : const.z, "t" : [t]})#, "Y", "Z", "T"])
     #read puddle
-    ds_puddle = xr.open_dataset(ds.encoding["source"], group="/puddle/", engine='h5netcdf', phony_dims='sort')
+    ds_puddle = xr.open_dataset(ds.encoding["source"], group="/puddle/", engine=engine, **open_dataset_kwargs)
     ds_puddle = ds_puddle.assign(ds_puddle.attrs) # convert data stored in attributes to variables
     for name in ds_puddle.attrs:
         ds_puddle = ds_puddle.rename({name : "puddle_"+name}) # rename variables to indicate that this is puddle
