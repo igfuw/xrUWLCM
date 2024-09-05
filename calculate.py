@@ -145,7 +145,7 @@ def calc_precip_flux(ds):
     elif ds.microphysics == "single-moment bulk":
         # in bulk micro, precip_rate is the difference between influx and outflux
         prflux = ds.precip_rate.copy()
-        prflux[:,:,-1] *= ds.rhod[-1]
+        prflux[:,:,:,-1] *= ds.rhod[-1]
         for k in np.arange(ds.sizes["z"]-2, 0, -1):
-            prflux[k] = prflux[k+1] + prflux[k] * ds.rhod[k]
+            prflux[:,:,:,k] = prflux[:,:,:,k+1] + prflux[:,:,:,k] * ds.rhod[k]
         return ds.assign(prflux = prflux * -1 * ds.dk * L_evap)
