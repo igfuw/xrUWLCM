@@ -18,7 +18,8 @@ def calc_all(ds):
     .pipe(calc_r_m6) \
     .pipe(calc_dv) \
     .pipe(calc_surface_area) \
-    .pipe(calc_precip_flux) 
+    .pipe(calc_precip_flux) \
+    .pipe(calc_lwp)
 
 # aerosol mixing ratio [kg/kg]
 def calc_ra(ds):
@@ -150,3 +151,7 @@ def calc_precip_flux(ds):
         for k in np.arange(ds.sizes["z"]-2, 0, -1):
             prflux[dict(z=k)] = prflux.isel(z=k+1) + prflux.isel(z=k)
         return ds.assign(prflux = prflux * -1 * ds.dk * L_evap)
+
+#liquid water path in columns [kg/m2]
+def calc_lwp(ds):
+    return ds.assign(lwp = (ds.rl * ds['rhod']).sum(["z"]) * ds.dz)
