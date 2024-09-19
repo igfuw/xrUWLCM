@@ -155,3 +155,7 @@ def calc_precip_flux(ds):
 #liquid water path in columns [kg/m2]
 def calc_lwp(ds):
     return ds.assign(lwp = (ds.rl * ds['rhod']).sum(["z"]) * ds.dz)
+
+# inversion height [m]
+def calc_zi(ds, cond):
+    return ds.assign(zi=lambda x: x.z.where(cond).idxmin(dim='z'))
