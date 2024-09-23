@@ -5,6 +5,7 @@ def convert_units(ds):
         "rt" : 1e3, # to [g/kg]
         "rc" : 1e3, # to [g/kg]
         "rr" : 1e3, # to [g/kg]
+        "rv" : 1e3, # to [g/kg]
         "r_mean" : 1e6, # to [um]
         "r_sigma" : 1e6, # to [um]
         "na" : 1e-6, # to [1/mg]
