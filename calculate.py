@@ -1,12 +1,16 @@
 #base on output of UWLCM in ICMW24_CC configuration, TODO: how to deal with different outputs...
 import xarray as xr
-
 import numpy as np
 
+# could use formulas from libcloud via python bindings, but this would introduce dependency issues
 L_evap = 2264.76e3 # latent heat of evaporation [J/kg]
+R_d = 287.052874 # specific gas constant for dry air [J/kg/K]
+c_pd = 1005 # specific heat capacity [J/kg/K]
 
 def calc_all(ds):
     return calc_rc(ds) \
+    .pipe(calc_temp) \
+    .pipe(calc_RH) \
     .pipe(calc_rr) \
     .pipe(calc_rl) \
     .pipe(calc_rt) \
@@ -159,3 +163,17 @@ def calc_lwp(ds):
 # inversion height [m]
 def calc_zi(ds, cond):
     return ds.assign(zi=lambda x: x.z.where(cond).idxmin(dim='z'))
+
+# temperature [K]
+def calc_temp(ds):
+    return ds.assign(temp = ds.th * pow(ds.p_e / 1e5, R_d / c_pd)) # could use formulas from libcloud via python bindings, but this would introduce dependency issues
+
+# relative humidity
+def calc_RH(ds):
+    if ds.microphysics == "super-droplets":
+        return ds # in lgrngn microphysics RH is stored, calculated based on the RH_formula option
+    else:
+        # TODO: could use libcloud's functions, but for now we hardcode Tetens formulas
+        T_C = ds.temp - 273.15
+        rv_s_tet = 380 / (ds.p_e * np.exp(-17.2693882 * T_C  / (ds.temp - 35.86)) - 610.9)
+        return ds.assign(RH = ds.rv / rv_s_tet)
