@@ -13,7 +13,7 @@ def load_outdir(datadir, engine=None):
     #                                   .assign(out_wet_lft_edges=const.out_wet_lft_edges) \
     #                                   .assign(out_wet_rgt_edges=const.out_wet_rgt_edges) \
     #                                   .chunk({"t" : 1}) 
-    return data, data_DSD 
+    return data, data_DSD
 
 def load_const(datadir, engine=None):
     open_dataset_kwargs = {'phony_dims': 'sort'} if engine=='h5netcdf' else {} # h5netcdf-specific option

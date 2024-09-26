@@ -22,15 +22,15 @@ def calc_all(ds):
     .pipe(calc_r_m6) \
     .pipe(calc_dv) \
     .pipe(calc_surface_area) \
-    .pipe(calc_precip_flux) \
     .pipe(calc_lwp)
+    
 
 # aerosol mixing ratio [kg/kg]
 def calc_ra(ds):
     if ds.microphysics == "super-droplets":
         return ds.assign(ra=lambda x: x.aerosol_rw_mom3 * 4./3. * np.pi * 1e3)
     else:
-        return ds.assign(ra=np.NaN)
+        return ds.assign(ra=np.nan)
     
 # cloud mixing ratio [kg/kg]
 def calc_rc(ds):
@@ -65,7 +65,7 @@ def calc_nt(ds):
     if ds.microphysics == "super-droplets":
         return ds.cloud_rw_mom0 + ds.aerosol_rw_mom0 + ds.rain_rw_mom0
     elif ds.microphysics == 'single-moment bulk':
-        return np.NaN
+        return np.nan
     elif ds.microphysics == 'double-moment bulk':
         return ds.nc + ds.nr
     
@@ -74,30 +74,30 @@ def calc_r_mean(ds):
     if ds.microphysics == "super-droplets":
         return ds.assign(r_mean=lambda x: x.all_rw_mom1 / calc_nt(x))
     else:
-        return ds.assign(r_mean=np.NaN)
+        return ds.assign(r_mean=np.nan)
     
 # std dev of radius [m]
 def calc_r_sigma(ds):
     if ds.microphysics == "super-droplets":
         return ds.assign(r_sigma=lambda x: np.sqrt(x.all_rw_mom2 / calc_nt(x) - np.power(x.all_rw_mom1 / calc_nt(x), 2)))
     else:
-        return ds.assign(r_sigma=np.NaN)
+        return ds.assign(r_sigma=np.nan)
     
 # number concentration of aerosols [1/kg]
 def calc_na(ds):
     if ds.microphysics == "super-droplets":
         return ds.assign(na=lambda x: x.aerosol_rw_mom0)
     elif ds.microphysics == 'single-moment bulk':
-        return ds.assign(na=np.NaN)
+        return ds.assign(na=np.nan)
     elif ds.microphysics == 'double-moment bulk':
-        return ds.assign(na=np.NaN)
+        return ds.assign(na=np.nan)
     
 # number concentration of cloud droplets [1/kg]
 def calc_nc(ds):
     if ds.microphysics == "super-droplets":
         return ds.assign(nc=lambda x: x.cloud_rw_mom0)
     elif ds.microphysics == 'single-moment bulk':
-        return ds.assign(nc=np.NaN)
+        return ds.assign(nc=np.nan)
     elif ds.microphysics == 'double-moment bulk':
         return ds
     
@@ -106,7 +106,7 @@ def calc_nr(ds):
     if ds.microphysics == "super-droplets":
         return ds.assign(nr=lambda x: x.rain_rw_mom0)
     elif ds.microphysics == 'single-moment bulk':
-        return ds.assign(nr=np.NaN)
+        return ds.assign(nr=np.nan)
     elif ds.microphysics == 'double-moment bulk':
         return ds
     
@@ -115,7 +115,7 @@ def calc_r_m6(ds):
     if ds.microphysics == "super-droplets":
         return ds.assign(r_m6=lambda x: x.all_rw_mom6 *x.rhod)
     else:
-        return ds.assign(r_m6=np.NaN)
+        return ds.assign(r_m6=np.nan)
 
 def calc_cloud_base(ds, cond):
     return ds.assign(cb_z=lambda x: x.z.where(cond).idxmin(dim='z'))
@@ -150,7 +150,7 @@ def calc_precip_flux(ds):
     elif ds.microphysics == "single-moment bulk":
         # in bulk micro, precip_rate is the difference between influx and outflux
         prflux = ds.precip_rate.copy()
-        prflux = prflux.chunk({'t': 'auto'})
+        prflux = prflux.chunk({'t': '1'})
         prflux *= ds.rhod
         for k in np.arange(ds.sizes["z"]-2, 0, -1):
             prflux[dict(z=k)] = prflux.isel(z=k+1) + prflux.isel(z=k)
