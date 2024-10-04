@@ -22,7 +22,8 @@ def calc_all(ds):
     .pipe(calc_r_m6) \
     .pipe(calc_dv) \
     .pipe(calc_surface_area) \
-    .pipe(calc_lwp)
+    .pipe(calc_lwp) \
+    .pipe(calc_rwp)
     
 
 # aerosol mixing ratio [kg/kg]
@@ -159,6 +160,14 @@ def calc_precip_flux(ds):
 #liquid water path in columns [kg/m2]
 def calc_lwp(ds):
     return ds.assign(lwp = (ds.rl * ds['rhod']).sum(["z"]) * ds.dz)
+    
+#liquid water path in columns [kg/m2]
+def calc_cwp(ds):
+    return ds.assign(cwp = (ds.rc * ds['rhod']).sum(["z"]) * ds.dz)
+    
+#liquid water path in columns [kg/m2]
+def calc_rwp(ds):
+    return ds.assign(rwp = (ds.rr * ds['rhod']).sum(["z"]) * ds.dz)
 
 # inversion height [m]
 def calc_zi(ds, cond):

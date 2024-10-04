@@ -13,6 +13,8 @@ def convert_units(ds):
         "nr" : 1e-6, # to [1/mgres100m_rt_i_clean_series.pngres100m_rt_i_clean_series.png]
         "r_m6" : 1e18, # to [mm^6/m^3]
         "lwp" : 1e3, # to [g/m^2]
+        "cwp" : 1e3, # to [g/m^2]
+        "rwp" : 1e3, # to [g/m^2]
     }
 
     for m in multiplier:
