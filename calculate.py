@@ -26,26 +26,32 @@ def calc_all(ds):
     .pipe(calc_rwp)
     
 
-# aerosol mixing ratio [kg/kg]
 def calc_ra(ds):
     if ds.microphysics == "super-droplets":
-        return ds.assign(ra=lambda x: x.aerosol_rw_mom3 * 4./3. * np.pi * 1e3)
+        ra=lambda x: x.aerosol_rw_mom3 * 4./3. * np.pi * 1e3
     else:
-        return ds.assign(ra=np.nan)
-    
-# cloud mixing ratio [kg/kg]
+        ra=np.nan
+    ra.attrs["units"] = "kg/kg"
+    ra.attrs["long_name"] = "aerosol mass mixing ratio"
+    return ds.assign(ra=ra)
+
 def calc_rc(ds):
     if ds.microphysics == "super-droplets":
-        return ds.assign(rc=lambda x: x.cloud_rw_mom3 * 4./3. * np.pi * 1e3)
+        rc=lambda x: x.cloud_rw_mom3 * 4./3. * np.pi * 1e3
     else:
-        return ds # with bulk micro, ds already contains rc
+        rc=ds.rc
+    rc.attrs["units"] = "kg/kg"
+    rc.attrs["long_name"] = "cloud mass mixing ratio"
+    return ds.assign(rc=rc)
     
-# rain mixing ratio [kg/kg]
 def calc_rr(ds):
     if ds.microphysics == "super-droplets":
-        return ds.assign(rr=lambda x: x.rain_rw_mom3 * 4./3. * np.pi * 1e3)
+        rr=lambda x: x.rain_rw_mom3 * 4./3. * np.pi * 1e3
     else:
-        return ds # with bulk micro, ds already contains rr
+        rr=ds.rr
+    rr.attrs["units"] = "kg/kg"
+    rr.attrs["long_name"] = "rain mass mixing ratio"
+    return ds.assign(rr=rr)
     
 # liquid water mixing ratio [kg/kg]
 def calc_rl(ds):
@@ -159,30 +165,51 @@ def calc_precip_flux(ds):
 
 #liquid water path in columns [kg/m2]
 def calc_lwp(ds):
-    return ds.assign(lwp = (ds.rl * ds['rhod']).sum(["z"]) * ds.dz)
+    lwp = (ds.rl * ds['rhod']).sum(["z"]) * ds.dz    
+    lwp.attrs["units"] = "kg/m$^2$"
+    lwp.attrs["long_name"] = "liquid water path"
+    return ds.assign(lwp = lwp)
     
 #liquid water path in columns [kg/m2]
 def calc_cwp(ds):
-    return ds.assign(cwp = (ds.rc * ds['rhod']).sum(["z"]) * ds.dz)
+    cwp = (ds.rc * ds['rhod']).sum(["z"]) * ds.dz    
+    cwp.attrs["units"] = "kg/m$^2$"
+    cwp.attrs["long_name"] = "cloud water path"
+    return ds.assign(cwp = cwp)
     
 #liquid water path in columns [kg/m2]
 def calc_rwp(ds):
-    return ds.assign(rwp = (ds.rr * ds['rhod']).sum(["z"]) * ds.dz)
+    rwp = (ds.rr * ds['rhod']).sum(["z"]) * ds.dz    
+    rwp.attrs["units"] = "kg/m$^2$"
+    rwp.attrs["long_name"] = "rain water path"
+    return ds.assign(rwp = rwp)
 
 # inversion height [m]
 def calc_zi(ds, cond):
-    return ds.assign(zi=lambda x: x.z.where(cond).idxmin(dim='z'))
+    zi=ds.z.where(cond).idxmin(dim='z')
+    z_i.attrs["units"] = "m"
+    z_i.attrs["long_name"] = "inversion height"
+    return ds.assign(z_i = z_i)
+#    return ds.assign(zi=lambda x: x.z.where(cond).idxmin(dim='z'))
 
 # temperature [K]
 def calc_temp(ds):
-    return ds.assign(temp = ds.th * pow(ds.p_e / 1e5, R_d / c_pd)) # could use formulas from libcloud via python bindings, but this would introduce dependency issues
+    temp = ds.th * pow(ds.p_e / 1e5, R_d / c_pd) # could use formulas from libcloud via python bindings, but this would introduce dependency issues
+    temp.attrs["units"] = "K"
+    temp.attrs["long_name"] = "temperature"
+    return ds.assign(temp = temp)
 
 # relative humidity
 def calc_RH(ds):
     if ds.microphysics == "super-droplets":
+        ds.RH.attrs["units"] = "1"
+        ds.RH.attrs["long name"] = "relative humidity"
         return ds # in lgrngn microphysics RH is stored, calculated based on the RH_formula option
     else:
         # TODO: could use libcloud's functions, but for now we hardcode Tetens formulas
         T_C = ds.temp - 273.15
         rv_s_tet = 380 / (ds.p_e * np.exp(-17.2693882 * T_C  / (ds.temp - 35.86)) - 610.9)
-        return ds.assign(RH = ds.rv / rv_s_tet)
+        RH = ds.rv / rv_s_tet
+        RH.attrs["units"] = "1"
+        RH.attrs["long name"] = "relative humidity"
+        return ds.assign(RH = RH)

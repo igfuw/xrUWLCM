@@ -1,25 +1,32 @@
 def convert_units(ds):
-    multiplier = {
-        "ra" : 1e3, # to [g/kg]
-        "rl" : 1e3, # to [g/kg]
-        "rt" : 1e3, # to [g/kg]
-        "rc" : 1e3, # to [g/kg]
-        "rr" : 1e3, # to [g/kg]
-        "rv" : 1e3, # to [g/kg]
-        "r_mean" : 1e6, # to [um]
-        "r_sigma" : 1e6, # to [um]
-        "na" : 1e-6, # to [1/mg]
-        "nc" : 1e-6, # to [1/mg]
-        "nr" : 1e-6, # to [1/mgres100m_rt_i_clean_series.pngres100m_rt_i_clean_series.png]
-        "r_m6" : 1e18, # to [mm^6/m^3]
-        "lwp" : 1e3, # to [g/m^2]
-        "cwp" : 1e3, # to [g/m^2]
-        "rwp" : 1e3, # to [g/m^2]
+    var_units = {
+        "ra" : (1e3, "g/kg"),
+        "rl" : (1e3, "g/kg"),
+        "rt" : (1e3, "g/kg"),
+        "rc" : (1e3, "g/kg"),
+        "rr" : (1e3, "g/kg"),
+        "rv" : (1e3, "g/kg"),
+        "lwp" : (1e3, "g/m$^2$"),
+        "cwp" : (1e3, "g/m$^2$"),
+        "rwp" : (1e3, "g/m$^2$"),
+        "r_mean" : (1e6, '$\mu $m'),
+        "r_sigma" : (1e6, '$\mu $m'),
+        "na" : (1e-6, '1/mg'),
+        "nc" : (1e-6, '1/mg'),
+        "nr" : (1e-6, '1/mg'),
+        "ra" : (1e3, "g/kg"),
+        "r_m6" : (1e18, "mm$^6$/m$^3$"),
     }
 
-    for m in multiplier:
+    for var, (m, u) in var_units.items():
         try:
-            ds[m] *= multiplier[m]
+            ds[var] *= m
+            ds[var].attrs["units"] = u
         except:
             pass
+            
+    ds = ds.assign_coords(t=ds.t/3600.)
+    ds.t.attrs["units"] = "h"
+    ds.t.attrs["long_name"] = "time"
+    
     return ds

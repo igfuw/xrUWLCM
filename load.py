@@ -7,7 +7,7 @@ import numpy as np
 # data_DSD - only timesteps that have DSD vars, from constants only rhod to facilitate calculations of derived variables
 def load_outdir(datadir, engine=None):
     const = load_const(datadir, engine)
-    data = xr.merge([const, load_timesteps(datadir, const, engine)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
+    data = xr.merge([const, load_timesteps(datadir, const, engine)], combine_attrs="no_conflicts").chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
     data_DSD = xr.merge([const, load_DSD(datadir, const, engine)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
     #data_DSD = load_DSD(datadir, const).assign(rhod=const.rhod) \
     #                                   .assign(out_wet_lft_edges=const.out_wet_lft_edges) \
@@ -29,7 +29,9 @@ def load_const(datadir, engine=None):
         except:
             pass
     #time coordinates
-    const = const.assign_coords(t=("t",const.T.values))
+    const = const.assign_coords(t=(const.T.values))
+    const.t.attrs["units"] = "s"
+    const.t.attrs["long_name"] = "time"
     #coordinates of cell edges
     const = const.assign_coords({"xe" : const.X[:,0,0], "ye" : const.Y[0,:,0], "ze" : const.Z[0,0,:]})#, "Y", "Z", "T"])
     #coordinates of cell centers
@@ -110,6 +112,10 @@ def squeeze_and_set_time(ds, const, drop_DSD, engine=None):
     t = np.float32(ds.encoding["source"][-13:-3]) * const.dt 
     
     ds = ds.assign_coords({"x" : const.x, "y" : const.y, "z" : const.z, "t" : [t]})#, "Y", "Z", "T"])
+    ds.t.attrs["units"] = "s"
+    ds.t.attrs["long_name"] = "time"
+
+    
     #read puddle
     ds_puddle = xr.open_dataset(ds.encoding["source"], group="/puddle/", engine=engine, **open_dataset_kwargs)
     ds_puddle = ds_puddle.assign(ds_puddle.attrs) # convert data stored in attributes to variables
