@@ -41,6 +41,8 @@ def load_const(datadir, engine=None):
     const = const.assign_coords({"x" : X[:,0,0], "y" : Y[0,:,0], "z" : Z[0,0,:]})#, "Y", "Z", "T"])
   
     const = const.assign_attrs(datadir=datadir)
+    const.z.attrs["units"] = "m"
+    const.z.attrs["long_name"] = "height"
 
 
     #merge all groups into a single dataset
@@ -115,6 +117,8 @@ def squeeze_and_set_time(ds, const, drop_DSD, engine=None):
     ds.t.attrs["units"] = "s"
     ds.t.attrs["long_name"] = "time"
 
+    ds.z.attrs["units"] = "m"
+    ds.z.attrs["long_name"] = "height"
     
     #read puddle
     ds_puddle = xr.open_dataset(ds.encoding["source"], group="/puddle/", engine=engine, **open_dataset_kwargs)

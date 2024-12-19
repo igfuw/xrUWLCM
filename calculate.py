@@ -32,7 +32,7 @@ def calc_ra(ds):
     else:
         ra=np.nan
     ra.attrs["units"] = "kg/kg"
-    ra.attrs["long_name"] = "aerosol mass mixing ratio"
+    ra.attrs["long_name"] = "humidified aerosol mixing ratio"
     return ds.assign(ra=ra)
 
 def calc_rc(ds):
@@ -41,7 +41,7 @@ def calc_rc(ds):
     else:
         rc=ds.rc
     rc.attrs["units"] = "kg/kg"
-    rc.attrs["long_name"] = "cloud mass mixing ratio"
+    rc.attrs["long_name"] = "cloud water mixing ratio"
     return ds.assign(rc=rc)
     
 def calc_rr(ds):
@@ -50,7 +50,7 @@ def calc_rr(ds):
     else:
         rr=ds.rr
     rr.attrs["units"] = "kg/kg"
-    rr.attrs["long_name"] = "rain mass mixing ratio"
+    rr.attrs["long_name"] = "rain water mixing ratio"
     return ds.assign(rr=rr)
     
 # liquid water mixing ratio [kg/kg]
