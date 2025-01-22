@@ -9,6 +9,10 @@ def load_outdir(datadir, engine=None):
     const = load_const(datadir, engine)
     data = xr.merge([const, load_timesteps(datadir, const, engine)], combine_attrs="no_conflicts").chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
     data_DSD = xr.merge([const, load_DSD(datadir, const, engine)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
+    # hardcoded for now, TODO: output it in const in UWLCM
+    data.attrs["aerosol definition"] = "rw < 0.5 microns"
+    data.attrs["cloud droplet definition"] = "0.5 microns < rw < 25 microns"
+    data.attrs["rain drop definition"] = "25 microns < rw"
     #data_DSD = load_DSD(datadir, const).assign(rhod=const.rhod) \
     #                                   .assign(out_wet_lft_edges=const.out_wet_lft_edges) \
     #                                   .assign(out_wet_rgt_edges=const.out_wet_rgt_edges) \
@@ -19,31 +23,51 @@ def load_const(datadir, engine=None):
     open_dataset_kwargs = {'phony_dims': 'sort'} if engine=='h5netcdf' else {} # h5netcdf-specific option
     const = xr.open_dataset(datadir + "const.h5", engine=engine, **open_dataset_kwargs)
 
-    # xe,ye,ze are positions of cell edges
-    const = const.rename({"phony_dim_0" : "x", "phony_dim_1" : "y", "phony_dim_2" : "z", "phony_dim_3" : "t", \
-                          "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze"})
-    #output bins if applicable
-    if const.microphysics == "super-droplets":
-        try:
-            const = const.rename({"phony_dim_7" : "outbins_wet"})         
-        except:
-            pass
+    if len(const.G.dims)==3: # 3D
+        # xe,ye,ze are positions of cell edges
+        const = const.rename({"phony_dim_0" : "x", "phony_dim_1" : "y", "phony_dim_2" : "z", "phony_dim_3" : "t", \
+                              "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze"})
+        #output bins if applicable
+        if const.microphysics == "super-droplets":
+            try:
+                const = const.rename({"phony_dim_7" : "outbins_wet"})         
+            except:
+                pass
+        #coordinates of cell edges
+        const = const.assign_coords({"xe" : const.X[:,0,0], "ye" : const.Y[0,:,0], "ze" : const.Z[0,0,:]})#, "Y", "Z", "T"])
+
+        #coordinates of cell centers
+        X = const.rolling(xe=2).mean().X.dropna(dim="xe").drop_isel(ye=[-1], ze=[-1]).rename({"xe": "x", "ye": "y", "ze": "z"}).compute()
+        Y = const.rolling(ye=2).mean().Y.dropna(dim="ye").drop_isel(xe=[-1], ze=[-1]).rename({"xe": "x", "ye": "y", "ze": "z"}).compute()
+        Z = const.rolling(ze=2).mean().Z.dropna(dim="ze").drop_isel(xe=[-1], ye=[-1]).rename({"xe": "x", "ye": "y", "ze": "z"}).compute()
+        const = const.assign_coords({"x" : X[:,0,0], "y" : Y[0,:,0], "z" : Z[0,0,:]})#, "Y", "Z", "T"])
+    elif len(const.G.dims)==2: # 3D
+        # xe,ye,ze are positions of cell edges
+        const = const.rename({"phony_dim_0" : "x", "phony_dim_1" : "z", "phony_dim_2" : "t", \
+                              "phony_dim_3" : "xe", "phony_dim_4" : "ze", "Y" : "Z"})
+        #output bins if applicable
+        if const.microphysics == "super-droplets":
+            try:
+                const = const.rename({"phony_dim_5" : "outbins_wet"})         
+            except:
+                pass
+        #coordinates of cell edges
+        const = const.assign_coords({"xe" : const.X[:,0], "ze" : const.Z[0,:]})
+        #coordinates of cell centers
+        X = const.rolling(xe=2).mean().X.dropna(dim="xe").drop_isel(ze=[-1]).rename({"xe": "x", "ze": "z"}).compute()
+        Z = const.rolling(ze=2).mean().Z.dropna(dim="ze").drop_isel(xe=[-1]).rename({"xe": "x", "ze": "z"}).compute()
+        const = const.assign_coords({"x" : X[:,0], "z" : Z[0,:]})#, "Y", "Z", "T"])
+    else:
+        raise Exception("load_const: data needs to be either 2D or 3D") 
+                
     #time coordinates
     const = const.assign_coords(t=(const.T.values))
     const.t.attrs["units"] = "s"
     const.t.attrs["long_name"] = "time"
-    #coordinates of cell edges
-    const = const.assign_coords({"xe" : const.X[:,0,0], "ye" : const.Y[0,:,0], "ze" : const.Z[0,0,:]})#, "Y", "Z", "T"])
-    #coordinates of cell centers
-    X = const.rolling(xe=2).mean().X.dropna(dim="xe").drop_isel(ye=[-1], ze=[-1]).rename({"xe": "x", "ye": "y", "ze": "z"}).compute()
-    Y = const.rolling(ye=2).mean().Y.dropna(dim="ye").drop_isel(xe=[-1], ze=[-1]).rename({"xe": "x", "ye": "y", "ze": "z"}).compute()
-    Z = const.rolling(ze=2).mean().Z.dropna(dim="ze").drop_isel(xe=[-1], ye=[-1]).rename({"xe": "x", "ye": "y", "ze": "z"}).compute()
-    const = const.assign_coords({"x" : X[:,0,0], "y" : Y[0,:,0], "z" : Z[0,0,:]})#, "Y", "Z", "T"])
   
     const = const.assign_attrs(datadir=datadir)
     const.z.attrs["units"] = "m"
     const.z.attrs["long_name"] = "height"
-
 
     #merge all groups into a single dataset
     for grname in ["rt_params", "ForceParameters", "MPI details", "advection", "git_revisions", "lgrngn", "misc", "piggy", "prs", "rhs", "sgs", "user_params", "vip"]:
@@ -91,29 +115,48 @@ def load_DSD(datadir, const, engine=None):
 
 def squeeze_and_set_time(ds, const, drop_DSD, engine=None):
     open_dataset_kwargs = {'phony_dims': 'sort'} if engine=='h5netcdf' else {} # h5netcdf-specific option
-    ds = ds.rename({"phony_dim_0" : "x", "phony_dim_1" : "y"})
-
-    #order of phony dims can depend on micro used, e.g. in blk_1m latent_heat_flux is the first array, hence phony_dim_2 has size 1 and z is phony_dim_3
-    if ds.phony_dim_2.size == 1:
-      ds = ds.rename({"phony_dim_3" : "z"})
-      try:
-        ds = ds.squeeze("phony_dim_2", drop=True) # surface fluxes are 3D arrays with len(z)=1, convert to 2D arrays
-      except:
-        pass
-            
-    elif ds.phony_dim_3.size == 1:
-      ds = ds.rename({"phony_dim_2" : "z"})
-      try:
-        ds = ds.squeeze("phony_dim_3", drop=True) # surface fluxes are 3D arrays with len(z)=1, convert to 2D arrays
-      except:
-        pass       
-
-
+    
     ds = ds.expand_dims("t")
     #get time from filename
     t = np.float32(ds.encoding["source"][-13:-3]) * const.dt 
     
-    ds = ds.assign_coords({"x" : const.x, "y" : const.y, "z" : const.z, "t" : [t]})#, "Y", "Z", "T"])
+    if len(const.G.dims)==3: # 3D
+        ds = ds.rename({"phony_dim_0" : "x", "phony_dim_1" : "y"})
+        #order of phony dims can depend on micro used, e.g. in blk_1m latent_heat_flux is the first array, hence phony_dim_2 has size 1 and z is phony_dim_3
+        if ds.phony_dim_2.size == 1:
+          ds = ds.rename({"phony_dim_3" : "z"})
+          try:
+            ds = ds.squeeze("phony_dim_2", drop=True) # surface fluxes are 3D arrays with len(z)=1, convert to 2D arrays
+          except:
+            pass
+            
+        elif ds.phony_dim_3.size == 1:
+          ds = ds.rename({"phony_dim_2" : "z"})
+          try:
+            ds = ds.squeeze("phony_dim_3", drop=True) # surface fluxes are 3D arrays with len(z)=1, convert to 2D arrays
+          except:
+            pass       
+        ds = ds.assign_coords({"x" : const.x, "y" : const.y, "z" : const.z, "t" : [t]})#, "Y", "Z", "T"])
+    elif len(const.G.dims)==2: # 2D
+        ds = ds.rename({"phony_dim_0" : "x"})
+        #order of phony dims can depend on micro used, e.g. in blk_1m latent_heat_flux is the first array, hence phony_dim_1 has size 1 and z is phony_dim_2
+        if ds.phony_dim_1.size == 1:
+          ds = ds.rename({"phony_dim_2" : "z"})
+          try:
+            ds = ds.squeeze("phony_dim_1", drop=True) # surface fluxes are 2D arrays with len(z)=1, convert to 1D arrays
+          except:
+            pass
+            
+        elif ds.phony_dim_2.size == 1:
+          ds = ds.rename({"phony_dim_1" : "z"})
+          try:
+            ds = ds.squeeze("phony_dim_2", drop=True) # surface fluxes are 2D arrays with len(z)=1, convert to 1D arrays
+          except:
+            pass       
+        ds = ds.assign_coords({"x" : const.x, "z" : const.z, "t" : [t]})#, "Y", "Z", "T"])
+    else:
+        raise Exception("squeeze_and_set_time: data needs to be either 2D or 3D") 
+    
     ds.t.attrs["units"] = "s"
     ds.t.attrs["long_name"] = "time"
 
