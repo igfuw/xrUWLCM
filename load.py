@@ -24,15 +24,13 @@ def load_const(datadir, engine=None):
     const = xr.open_dataset(datadir + "const.h5", engine=engine, **open_dataset_kwargs)
 
     if len(const.G.dims)==3: # 3D
-        # xe,ye,ze are positions of cell edges
-        const = const.rename({"phony_dim_0" : "x", "phony_dim_1" : "y", "phony_dim_2" : "z", "phony_dim_3" : "t", \
-                              "phony_dim_4" : "xe", "phony_dim_5" : "ye", "phony_dim_6" : "ze"})
-        #output bins if applicable
-        if const.microphysics == "super-droplets":
-            try:
-                const = const.rename({"phony_dim_7" : "outbins_wet"})         
-            except:
-                pass
+        const = const.rename({const.G.dims[0] : "x", const.G.dims[1] : "y", const.G.dims[2] : "z"})
+
+        # may need this renaming if sizes of some coordinates are equal
+        const["X"] = const.X.rename({const.X.dims[0] : "xe", const.X.dims[1] : "ye", const.X.dims[2] : "ze"})
+        const["Y"] = const.Y.rename({const.Y.dims[0] : "xe", const.Y.dims[1] : "ye", const.Y.dims[2] : "ze"})
+        const["Z"] = const.Z.rename({const.Z.dims[0] : "xe", const.Z.dims[1] : "ye", const.Z.dims[2] : "ze"})
+    
         #coordinates of cell edges
         const = const.assign_coords({"xe" : const.X[:,0,0], "ye" : const.Y[0,:,0], "ze" : const.Z[0,0,:]})#, "Y", "Z", "T"])
 
@@ -41,24 +39,33 @@ def load_const(datadir, engine=None):
         Y = const.rolling(ye=2).mean().Y.dropna(dim="ye").drop_isel(xe=[-1], ze=[-1]).rename({"xe": "x", "ye": "y", "ze": "z"}).compute()
         Z = const.rolling(ze=2).mean().Z.dropna(dim="ze").drop_isel(xe=[-1], ye=[-1]).rename({"xe": "x", "ye": "y", "ze": "z"}).compute()
         const = const.assign_coords({"x" : X[:,0,0], "y" : Y[0,:,0], "z" : Z[0,0,:]})#, "Y", "Z", "T"])
-    elif len(const.G.dims)==2: # 3D
-        # xe,ye,ze are positions of cell edges
-        const = const.rename({"phony_dim_0" : "x", "phony_dim_1" : "z", "phony_dim_2" : "t", \
-                              "phony_dim_3" : "xe", "phony_dim_4" : "ze", "Y" : "Z"})
-        #output bins if applicable
-        if const.microphysics == "super-droplets":
-            try:
-                const = const.rename({"phony_dim_5" : "outbins_wet"})         
-            except:
-                pass
+        
+    elif len(const.G.dims)==2: # 2D                                     
+        const = const.rename({const.G.dims[0] : "x", const.G.dims[1] : "z", "Y" : "Z"})
+        
+        const["X"] = const.X.rename({const.X.dims[0] : "xe", const.X.dims[1] : "ze"})
+        const["Z"] = const.Z.rename({const.Z.dims[0] : "xe", const.Z.dims[1] : "ze"})
+
         #coordinates of cell edges
         const = const.assign_coords({"xe" : const.X[:,0], "ze" : const.Z[0,:]})
+        
         #coordinates of cell centers
         X = const.rolling(xe=2).mean().X.dropna(dim="xe").drop_isel(ze=[-1]).rename({"xe": "x", "ze": "z"}).compute()
         Z = const.rolling(ze=2).mean().Z.dropna(dim="ze").drop_isel(xe=[-1]).rename({"xe": "x", "ze": "z"}).compute()
         const = const.assign_coords({"x" : X[:,0], "z" : Z[0,:]})#, "Y", "Z", "T"])
     else:
         raise Exception("load_const: data needs to be either 2D or 3D") 
+
+    # time coordinate in case it has the same size as some other coord
+    const["T"] = const.T.rename({const.T.dims[0] : "t"})
+                
+    #output bins if applicable
+    if const.microphysics == "super-droplets":
+        try:
+            const["out_wet_lft_edges"] = const.out_wet_lft_edges.rename({const.out_wet_lft_edges.dims[0] : "outbins_wet"})         
+            const["out_wet_rgt_edges"] = const.out_wet_rgt_edges.rename({const.out_wet_rgt_edges.dims[0] : "outbins_wet"})         
+        except:
+            pass
                 
     #time coordinates
     const = const.assign_coords(t=(const.T.values))
@@ -173,7 +180,7 @@ def squeeze_and_set_time(ds, const, drop_DSD, engine=None):
     #drop size spectrum data, because it may not be available at all timesteps making merging difficult; to load the spectrum, use load_spectra
     if(drop_DSD):
         out_spec_names = []
-        for i in np.arange(30):
+        for i in np.arange(len(const.outbins_wet)):
             out_spec_names.append('rw_rng'+str(i).zfill(3)+'_mom0')
         ds = ds.drop_vars(out_spec_names, errors='ignore')
         
