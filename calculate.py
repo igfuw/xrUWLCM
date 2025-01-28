@@ -21,20 +21,20 @@ def calc_all(ds):
     .pipe(calc_rain_r_sigma) \
     .pipe(calc_dv) \
     .pipe(calc_surface_area) \
+    .pipe(calc_ra) \
+    .pipe(calc_rl) \
+    .pipe(calc_rt) \
+    .pipe(calc_all_r_mean) \
+    .pipe(calc_all_r_sigma) \
+    .pipe(calc_all_r_m6) \
+    .pipe(calc_lwp) \
+    .pipe(calc_rwp)
 
     
-    #.pipe(calc_ra) \
-    #.pipe(calc_rl) \
-    #.pipe(calc_rt) \
-    #.pipe(calc_all_r_mean) \
-    #.pipe(calc_all_rain_r_sigma) \
-    #.pipe(calc_r_m6) \
-    #.pipe(calc_lwp) \
-    #.pipe(calc_rwp)
     
 
 def calc_ra(ds):
-    if ds.microphysics == "super-droplets":
+    if ds.microphysics == "super-droplets" and "aerosol_rw_mom3" in ds:
         ra=lambda x: x.aerosol_rw_mom3 * 4./3. * np.pi * 1e3
     else:
         ra=np.nan
@@ -44,8 +44,11 @@ def calc_ra(ds):
     return dsn
 
 def calc_rc(ds):
-    if ds.microphysics == "super-droplets":
-        rc=lambda x: x.cloud_rw_mom3 * 4./3. * np.pi * 1e3
+    if ds.microphysics == "super-droplets": 
+        if "cloud_rw_mom3" in ds:
+            rc=lambda x: x.cloud_rw_mom3 * 4./3. * np.pi * 1e3
+        else:
+            rc=np.nan
     else:
         rc=ds.rc
     dsn = ds.assign(rc=rc)
@@ -56,7 +59,10 @@ def calc_rc(ds):
 
 def calc_rr(ds):
     if ds.microphysics == "super-droplets":
-        rr=lambda x: x.rain_rw_mom3 * 4./3. * np.pi * 1e3
+        if "rain_rw_mom3" in ds:
+            rr=lambda x: x.rain_rw_mom3 * 4./3. * np.pi * 1e3
+        else:
+            rr=np.nan
     else:
         rr=ds.rr
     dsn = ds.assign(rr=rr)
@@ -68,33 +74,53 @@ def calc_rr(ds):
 # liquid water mixing ratio [kg/kg]
 def calc_rl(ds):
     if ds.microphysics == "super-droplets":
-        return ds.assign(rl=lambda x: (x.rain_rw_mom3 + x.aerosol_rw_mom3 + x.cloud_rw_mom3) * 4./3. * np.pi * 1e3)
+        if "rain_rw_mom3" in ds and "cloud_rw_mom3" in ds and "aerosol_rw_mom3" in ds:
+            rl=lambda x: (x.rain_rw_mom3 + x.aerosol_rw_mom3 + x.cloud_rw_mom3) * 4./3. * np.pi * 1e3
+        else:
+            rl=np.nan
     else:
-        return ds.assign(rl=lambda x: x.rc + x.rr)
+        rl=ds.rr + ds.rc
+    dsn = ds.assign(rl=rl)
+    dsn.rl.attrs["units"] = "kg/kg"
+    dsn.rl.attrs["long_name"] = "liquid water mixing ratio"
+    return dsn
         
 # total water mixing ratio [kg/kg]
 def calc_rt(ds):
     if ds.microphysics == "super-droplets":
-        return ds.assign(rt=lambda x: x.rv + (x.rain_rw_mom3 + x.aerosol_rw_mom3 + x.cloud_rw_mom3) * 4./3. * np.pi * 1e3)
+        if "rain_rw_mom3" in ds and "cloud_rw_mom3" in ds and "aerosol_rw_mom3" in ds:
+            rt=lambda x: x.rv + (x.rain_rw_mom3 + x.aerosol_rw_mom3 + x.cloud_rw_mom3) * 4./3. * np.pi * 1e3
+        else:
+            rt=np.nan
     else:
-        return ds.assign(rt=lambda x: x.rv + x.rc + x.rr)
+        rt=ds.rr + ds.rc + ds.rv
+    dsn = ds.assign(rt=rt)
+    dsn.rt.attrs["units"] = "kg/kg"
+    dsn.rt.attrs["long_name"] = "total water mixing ratio"
+    return dsn
     
 # number concentration per mass of air of all hydrometeors [1/kg]
 def calc_nt(ds):
     if ds.microphysics == "super-droplets":
-        return ds.cloud_rw_mom0 + ds.aerosol_rw_mom0 + ds.rain_rw_mom0
+        if "rain_rw_mom0" in ds and "cloud_rw_mom0" in ds and "aerosol_rw_mom0" in ds:
+            nt=lambda x: x.rain_rw_mom0 + x.aerosol_rw_mom0 + x.cloud_rw_mom0
+        else:
+            nt=np.nan    
     elif ds.microphysics == 'single-moment bulk':
-        return np.nan
+        nt=np.nan
     elif ds.microphysics == 'double-moment bulk':
-        return ds.nc + ds.nr
+        nt=ds.nc + ds.nr
+        
+    dsn = ds.assign(nt=nt)
+    dsn.nt.attrs["units"] = "1/kg"
+    dsn.nt.attrs["long_name"] = "concentration of hydrometeors"
+    return dsn
     
 # mean radius [m]
 def calc_all_r_mean(ds):
-    if ds.microphysics == "super-droplets":
-        try:
-            ds.nt
-        except:
-            ds = calc_nt(ds)
+    if ds.microphysics == "super-droplets" and "all_rw_mom1" in ds:
+        if "nt" not in ds:
+            ds = calc_nt(ds)        
         all_r_mean=lambda x: x.all_rw_mom1 / x.nt
     else:
         all_r_mean=np.nan
@@ -105,10 +131,8 @@ def calc_all_r_mean(ds):
     
 # mean radius [m]
 def calc_cloud_r_mean(ds):
-    if ds.microphysics == "super-droplets":
-        try:
-            ds.nc
-        except:
+    if ds.microphysics == "super-droplets" and "cloud_rw_mom1" in ds:
+        if "nc" not in ds:
             ds = calc_nc(ds)
         cloud_r_mean=lambda x: x.cloud_rw_mom1 / x.nc
     else:
@@ -120,10 +144,8 @@ def calc_cloud_r_mean(ds):
     
 # mean radius [m]
 def calc_rain_r_mean(ds):
-    if ds.microphysics == "super-droplets":
-        try:
-            ds.nr
-        except:
+    if ds.microphysics == "super-droplets" and "rain_rw_mom1" in ds:
+        if "nr" not in ds:
             ds = calc_nr(ds)
         rain_r_mean=lambda x: x.rain_rw_mom1 / x.nr
     else:
@@ -135,7 +157,9 @@ def calc_rain_r_mean(ds):
         
 # std dev of radius [m]
 def calc_all_r_sigma(ds):
-    if ds.microphysics == "super-droplets":
+    if ds.microphysics == "super-droplets" and "all_rw_mom1" in ds and "all_rw_mom2" in ds:
+        if "nr" not in ds:
+            ds = calc_nr(ds)
         all_r_sigma=lambda x: np.sqrt(x.all_rw_mom2 / calc_nt(x) - np.power(x.all_rw_mom1 / calc_nt(x), 2))
     else:
         all_r_sigma=np.nan
@@ -147,9 +171,7 @@ def calc_all_r_sigma(ds):
 # std dev of radius [m]
 def calc_cloud_r_sigma(ds):
     if ds.microphysics == "super-droplets":
-        try:
-            ds.nc
-        except:
+        if "nc" not in ds:
             ds = calc_nc(ds)
         cloud_r_sigma=lambda x: np.sqrt(x.cloud_rw_mom2 / x.nc - np.power(x.cloud_rw_mom1 / x.nc, 2))
     else:
@@ -162,9 +184,7 @@ def calc_cloud_r_sigma(ds):
 # std dev of radius [m]
 def calc_rain_r_sigma(ds):
     if ds.microphysics == "super-droplets":
-        try:
-            ds.nr
-        except:
+        if "nr" not in ds:
             ds = calc_nr(ds)
         rain_r_sigma=lambda x: np.sqrt(x.rain_rw_mom2 / x.nr - np.power(x.rain_rw_mom1 / x.nr, 2))
     else:
@@ -176,11 +196,9 @@ def calc_rain_r_sigma(ds):
     
 # number concentration of aerosols [1/kg]
 def calc_na(ds):
-    if ds.microphysics == "super-droplets":
+    if ds.microphysics == "super-droplets" and "aerosl_rw_mom0" in ds:
         na=lambda x: x.aerosol_rw_mom0
-    elif ds.microphysics == 'single-moment bulk':
-        na=np.nan
-    elif ds.microphysics == 'double-moment bulk':
+    else:
         na=np.nan
     dsn = ds.assign(na=na)
     dsn.na.attrs["units"] = "1/kg"
@@ -189,36 +207,40 @@ def calc_na(ds):
         
 # number concentration of cloud droplets [1/kg]
 def calc_nc(ds):
-    if ds.microphysics == "super-droplets":
-        nc=lambda x: x.cloud_rw_mom0
-    elif ds.microphysics == 'single-moment bulk':
-        nc=np.nan
-    elif ds.microphysics == 'double-moment bulk':
-        nc=np.nan
-    dsn = ds.assign(nc=nc)
+    dsn = ds
+    if ds.microphysics != 'double-moment bulk':    
+        if ds.microphysics == "super-droplets" and "cloud_rw_mom0" in ds:
+            nc=lambda x: x.cloud_rw_mom0
+        else:
+            nc=np.nan
+        dsn = ds.assign(nc=nc)
     dsn.nc.attrs["units"] = "1/kg"
     dsn.nc.attrs["long_name"] = "number concentration of cloud droplets"
     return dsn
-    
+
 # number concentration of rain drops [1/kg]
 def calc_nr(ds):
-    if ds.microphysics == "super-droplets":
-        nr=lambda x: x.rain_rw_mom0
-    elif ds.microphysics == 'single-moment bulk':
-        nr=np.nan
-    elif ds.microphysics == 'double-moment bulk':
-        nr=np.nan
-    dsn = ds.assign(nr=nr)
+    dsn = ds
+    if ds.microphysics != 'double-moment bulk':    
+        if ds.microphysics == "super-droplets" and "rain_rw_mom0" in ds:
+            nr=lambda x: x.rain_rw_mom0
+        else:
+            nr=np.nan
+        dsn = ds.assign(nr=nr)
     dsn.nr.attrs["units"] = "1/kg"
     dsn.nr.attrs["long_name"] = "number concentration of rain drops"
-    return dsn
+    return dsn    
    
-# 6th mooment of droplet radius[m^6/m^3]
+# 6th moment of droplet radius[m^6/m^3]
 def calc_all_r_m6(ds):
-    if ds.microphysics == "super-droplets":
-        return ds.assign(all_r_m6=lambda x: x.all_rw_mom6 *x.rhod)
+    if ds.microphysics == "super-droplets" and "all_rw_mom6" in ds:
+        all_r_m6=lambda x: x.all_rw_mom6 *x.rhod
     else:
-        return ds.assign(all_r_m6=np.nan)
+        all_r_m6=np.nan
+    dsn = ds.assign(all_r_m6=all_r_m6)
+    dsn.nr.attrs["units"] = "m$^6$/m$^3$"
+    dsn.nr.attrs["long_name"] = "6th moment of hydrometeor radius per unit volume"
+    return dsn    
 
 def calc_cloud_base(ds, cond):
     return ds.assign(cb_z=lambda x: x.z.where(cond).idxmin(dim='z'))
@@ -278,6 +300,8 @@ def calc_precip_flux(ds):
 
 #liquid water path in columns [kg/m2]
 def calc_lwp(ds):
+    if "rl" not in ds:
+        ds = calc_rl(ds)
     lwp = (ds.rl * ds['rhod']).sum(["z"]) * ds.dz    
     lwp.attrs["units"] = "kg/m$^2$"
     lwp.attrs["long_name"] = "liquid water path"
@@ -285,6 +309,8 @@ def calc_lwp(ds):
     
 #liquid water path in columns [kg/m2]
 def calc_cwp(ds):
+    if "rc" not in ds:
+        ds = calc_rc(ds)
     cwp = (ds.rc * ds['rhod']).sum(["z"]) * ds.dz    
     cwp.attrs["units"] = "kg/m$^2$"
     cwp.attrs["long_name"] = "cloud water path"
@@ -292,6 +318,8 @@ def calc_cwp(ds):
     
 #liquid water path in columns [kg/m2]
 def calc_rwp(ds):
+    if "rr" not in ds:
+        ds = calc_rr(ds)
     rwp = (ds.rr * ds['rhod']).sum(["z"]) * ds.dz    
     rwp.attrs["units"] = "kg/m$^2$"
     rwp.attrs["long_name"] = "rain water path"

@@ -178,7 +178,7 @@ def squeeze_and_set_time(ds, const, drop_DSD, engine=None):
     ds = ds.merge(ds_puddle) # ds_puddle attributes are dropped on merge (thats good)
     
     #drop size spectrum data, because it may not be available at all timesteps making merging difficult; to load the spectrum, use load_spectra
-    if(drop_DSD):
+    if(drop_DSD and "outbins_wet" in const):
         out_spec_names = []
         for i in np.arange(len(const.outbins_wet)):
             out_spec_names.append('rw_rng'+str(i).zfill(3)+'_mom0')
