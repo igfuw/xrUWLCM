@@ -7,7 +7,7 @@ import numpy as np
 # data_DSD - only timesteps that have DSD vars, from constants only rhod to facilitate calculations of derived variables
 def load_outdir(datadir, engine=None):
     const = load_const(datadir, engine)
-    data = xr.merge([const, load_timesteps(datadir, const, engine)], combine_attrs="no_conflicts").chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
+    data = xr.merge([const.drop_vars(["th_LS", "rv_LS"]), load_timesteps(datadir, const, engine)], combine_attrs="no_conflicts").chunk({"t" : 1}) #set chunk for dask, each task executes takes one file; th_LS and rv_LS dropped from const, becasue they ares stored in timesteps
     data_DSD = xr.merge([const, load_DSD(datadir, const, engine)]).chunk({"t" : 1}) #set chunk for dask, each task executes takes one file
     # hardcoded for now, TODO: output it in const in UWLCM
     data.attrs["aerosol definition"] = "rw < 0.5 microns"
