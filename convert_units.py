@@ -5,6 +5,8 @@ def convert_units(ds):
         "rt" : (1e3, "g/kg"),
         "rc" : (1e3, "g/kg"),
         "rr" : (1e3, "g/kg"),
+        "ria" : (1e3, "g/kg"),
+        "rib" : (1e3, "g/kg"),
         "rv" : (1e3, "g/kg"),
         "lwp" : (1e3, "g/m$^2$"),
         "cwp" : (1e3, "g/m$^2$"),
