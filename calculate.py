@@ -328,9 +328,9 @@ def calc_rwp(ds):
 # inversion height [m]
 def calc_zi(ds, cond):
     zi=ds.z.where(cond).idxmin(dim='z')
-    z_i.attrs["units"] = "m"
-    z_i.attrs["long_name"] = "inversion height"
-    return ds.assign(z_i = z_i)
+    zi.attrs["units"] = "m"
+    zi.attrs["long_name"] = "inversion height"
+    return ds.assign(zi = zi)
 #    return ds.assign(zi=lambda x: x.z.where(cond).idxmin(dim='z'))
 
 # temperature [K]
