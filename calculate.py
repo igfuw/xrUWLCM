@@ -294,8 +294,9 @@ def calc_precip_flux(ds):
         prflux = ds.precip_rate.copy()
         prflux = prflux.chunk({'t': '1'})
         prflux *= ds.rhod
-        for k in np.arange(ds.sizes["z"]-2, 0, -1):
-            prflux[dict(z=k)] = prflux.isel(z=k+1) + prflux.isel(z=k)
+        prflux = prflux.isel(z=slice(None, None, -1))   # reverse z
+        prflux = prflux.cumsum(dim="z")                 # integrate downward
+        prflux = prflux.isel(z=slice(None, None, -1))   # reverse z back
         return ds.assign(prflux = prflux * -1 * ds.dk * L_evap)
 
 #liquid water path in columns [kg/m2]
