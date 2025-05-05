@@ -20,9 +20,9 @@ def spectrum_average(E, K, lmbd):  # arguments are the output of calc_spectrum
     lmbd = lmbd[0] # assume nx=ny...
     K = K[0]
     Exy = 0.5 * (E[0] + E[1])
-    if(S.ndim == 4):
+    if(E.ndim == 4):
         Exy_avg = Exy.mean(axis=0).mean(axis=1) # time and height average
-    elif(S.ndim == 3):
+    elif(E.ndim == 3):
         Exy_avg = Exy.mean(axis=0) # time average only
     else:
         raise Exception("wrong number of dimensions") 
@@ -46,7 +46,7 @@ def calc_spectrum2d(ds, axs, res, exp): # dataset, axes over which fft is done, 
     
     #theta = np.arctan(kyx / kxy)
     ##theta = np.arctan2(kyx, kxy)
-    K = np.sqrt(np.pow(np.abs(kxy), 2) + np.pow(np.abs(kyx), 2))
+    K = np.sqrt(np.power(np.abs(kxy), 2) + np.power(np.abs(kyx), 2))
     #E[:,0,0,:]=0
     # c = plt.pcolormesh(K)
     # plt.colorbar(c)
@@ -69,7 +69,7 @@ def spectrum2d_rad_spline_integration(kx, ky, E): # x and y wavenumbers, amplitu
     ## integrate over entire range of theta (we need -pi to pi, beacause we use fft (not rfft) and we want both positive and negative kx and ky
     theta = np.linspace(-np.pi, np.pi, 100, False)
     E_int = np.empty_like(k_int)
-    for i in range(k.size):
+    for i in range(k_int.size):
         _kx = np.sin(theta) * k_int[i]
         _ky = np.cos(theta) * k_int[i]
         E_int[i] = np.mean(E_interp.ev(_kx, _ky) * 4 * np.pi)
@@ -88,6 +88,9 @@ def spectrum2d_rad_mean_integration(K, S, kx, ky):  # wavenumber, amplitude (or 
     elif(S.ndim == 3):
         S = S.reshape(S.shape[0], S.shape[1] * S.shape[2]) # 0 - time, 1 - x, 2 - y
         Slist = [s for s in S[:]]
+    elif(S.ndim == 2):
+        S = S.reshape(S.shape[0] * S.shape[1]) # 0 - x, 1 - y
+        Slist = [S]
     else:
         raise Exception("wrong number of dimensions") 
     lmbd = 1/K
