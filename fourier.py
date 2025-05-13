@@ -4,6 +4,8 @@
 import xarray as xr
 import numpy as np
 import scipy as sp
+from scipy.signal import savgol_filter
+from scipy import interpolate
 
 # 1d - calculate spetra along x and y and average
 def calc_spectrum(ds, axs, res, exp): # dataset, axes over which fft is done, grid resolution, amplitude (exp=1) or power (exp=2) spectrum
@@ -12,7 +14,7 @@ def calc_spectrum(ds, axs, res, exp): # dataset, axes over which fft is done, gr
     for ax, ax2 in zip(axs, reversed(axs)): # axis along which we calculate fft and the perpendicular axis
         K.append(np.fft.rfftfreq(ds.shape[ax]) / res)
         lmbd.append(1 / K[-1])
-        wk = np.fft.rfft(ds, axis = ax, norm='forward')
+        wk = np.fft.rfft(ds, axis = ax)#, norm='forward')
         E.append(np.mean(np.abs(wk) ** exp, axis = ax2))
     return E, K, lmbd
 
@@ -33,7 +35,7 @@ def spectrum_average(E, K, lmbd):  # arguments are the output of calc_spectrum
 def calc_spectrum2d(ds, axs, res, exp): # dataset, axes over which fft is done, grid resolution, amplitude (exp=1) or power (exp=2) spectrum
     assert(len(axs)==2) # spectrum is calculated over a horizontal slice   
     shift = np.fft.fftshift
-    wk = shift(np.fft.fft2(ds, axes = axs))#, norm='backward'))
+    wk = shift(np.fft.fft2(ds, axes = axs))#, norm='forward'))
     E = np.abs(wk) ** exp
     ky = shift(np.fft.fftfreq(ds.shape[axs[0]], res)) #* 2 * np.pi
     #kx = np.fft.rfftfreq(ds.shape[axs[1]]) / res #* 2 * np.pi # in 2d fft, real transform is done over the last axis
@@ -56,10 +58,10 @@ def calc_spectrum2d(ds, axs, res, exp): # dataset, axes over which fft is done, 
 # angular integration of a 2d spectrum using spline interpolation following
 # https://dsp.stackexchange.com/questions/36902/calculate-1d-power-spectrum-from-2d-images
 # TODO: add time and height averaging
-def spectrum2d_rad_spline_integration(kx, ky, E): # x and y wavenumbers, amplitude (or power); comes from calc_spectrum2d
+def spectrum2d_rad_spline_integration(kx, ky, E, npoint=100): # x and y wavenumbers, amplitude (or power); comes from calc_spectrum2d
     assert(E.ndim == 2) # for now the function works only with horizontal slices (e.g. a given time and height)
     E_interp = sp.interpolate.RectBivariateSpline(kx, ky, E)
-    k_int = np.logspace(np.log10(max(kx[kx > 0.].min(), ky[ky > 0.].min())), np.log10(max(kx.max(), ky.max())), 256)
+    k_int = np.logspace(np.log10(max(kx[kx > 0.].min(), ky[ky > 0.].min())), np.log10(max(kx.max(), ky.max())), npoint)
     
     ## integrate only over some cone around theta_center. 
     ## Around 0deg the spectrum has similar shape as the 1D spectrum along x
@@ -73,11 +75,13 @@ def spectrum2d_rad_spline_integration(kx, ky, E): # x and y wavenumbers, amplitu
         _kx = np.sin(theta) * k_int[i]
         _ky = np.cos(theta) * k_int[i]
         E_int[i] = np.mean(E_interp.ev(_kx, _ky) * 4 * np.pi)
+    # replace nan with 0 in bins that have no points
+    #E_int = np.nan_to_num(E_int, nan=0.0)
     return E_int, 1./k_int
 
 
 # angular integration of a 2d spectrum using averaging assuming equal weights for all points within some range (bin) of K
-def spectrum2d_rad_mean_integration(K, S, kx, ky):  # wavenumber, amplitude (or power); comes from calc_spectrum2d
+def spectrum2d_rad_mean_integration(K, S, kx, ky, nbin=101):  # wavenumber, amplitude (or power); comes from calc_spectrum2d
     # flatten along x and y to simplify integration, 
     # and create a list of such flattened horizontal slices 
     # (each list element is @ different time and height)
@@ -95,11 +99,22 @@ def spectrum2d_rad_mean_integration(K, S, kx, ky):  # wavenumber, amplitude (or 
         raise Exception("wrong number of dimensions") 
     lmbd = 1/K
 
-    lmbd_bins = np.logspace(np.log10(1./max(kx.max(), ky.max())), np.log10(1./max(kx[kx > 0.].min(), ky[ky > 0.].min())), 101)
+    lmbd_bins = np.logspace(np.log10(1./max(kx.max(), ky.max())), np.log10(1./max(kx[kx > 0.].min(), ky[ky > 0.].min())), nbin)
     S_mean = sp.stats.binned_statistic(lmbd, Slist, statistic='mean', bins=lmbd_bins).statistic
     S_mean = S_mean.mean(axis=0) # average over the Slist results (time or time and height average depending on the case)
-    S_mean *= 4* np.pi #integrated over -pi,pi range of theta
+    S_mean *= 2* np.pi #integrated over -pi,pi range of theta
     # replace nan with 0 in bins that have no points
-    S_mean = np.nan_to_num(S_mean, nan=0.0)
+    #S_mean = np.nan_to_num(S_mean, nan=0.0)
     lmbd_cntr = (lmbd_bins[1:] + lmbd_bins[:-1])/2.
     return S_mean, lmbd_cntr
+
+# interpolate spectrum to wavenumbers that are not in the signal (marked with nans)
+def interpolate_nan(E_int, lmbd):
+    valid = ~np.isnan(E_int)
+    invalid = np.isnan(E_int)
+    f_interp = interpolate.interp1d(lmbd[valid], E_int[valid], kind='linear', fill_value="extrapolate")
+    E_int[invalid] = f_interp(lmbd[invalid])
+
+#separate function to ensure the same default window and order
+def smooth_spectrum(E, window=31, order=2):
+    return savgol_filter(E, window_length=window, polyorder=order, mode='nearest')

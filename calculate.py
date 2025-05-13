@@ -28,7 +28,9 @@ def calc_all(ds):
     .pipe(calc_all_r_sigma) \
     .pipe(calc_all_r_m6) \
     .pipe(calc_lwp) \
-    .pipe(calc_rwp)
+    .pipe(calc_rwp) \
+    .pipe(calc_tau) \
+    .pipe(calc_albedo)
 
     
     
@@ -355,3 +357,20 @@ def calc_RH(ds):
         RH.attrs["units"] = "1"
         RH.attrs["long name"] = "relative humidity"
         return ds.assign(RH = RH)
+
+# optical thickness = 3/2 LWP / (rho_l * r_e)
+def calc_tau(ds, r_e=15e-6): # re is effective radius. TODO: in SDM (and in bulk 2m?)we can compute re directly    
+    if "lwp" not in ds:
+        ds = calc_lwp(ds)
+    tau = 3./2 * ds.lwp / r_e / 1e3 # LWP shuld be before convert_units, so in kg/m2
+    tau.attrs["units"] = "1"
+    tau.attrs["long name"] = "optical thickness"
+    return ds.assign(tau = tau)
+
+def calc_albedo(ds):
+    if "tau" not in ds:
+        ds = calc_tau(ds)
+    albedo = ds.tau / (13 + ds.tau) # Zhou et al. 2018, for stratocumulus
+    albedo.attrs["units"] = "1"
+    albedo.attrs["long name"] = "pseudo-albedo (Sc formula)"
+    return ds.assign(albedo = albedo)
