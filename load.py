@@ -21,6 +21,7 @@ VARIABLE_METADATA = {
     "nr": {"units": r"kg$^{-1}$", "long_name": "rain drop number concentration", "standard_name": r'$n_r$'},
     "precip_rate": {"units": r"kg$\, $m$^{-2}$$\, $s$^{-1}$", "long_name": "precipitation rate", "standard_name": r'$P$'},
     "sd_conc": {"units": "1", "long_name": "number of super-droplets per grid cell", "standard_name": r'$N_\mathrm{SD}$'},
+    "radiative_flux": {"units": r"$\text{W}\, \text{m}^{-2}$", "long_name": "net longwave radiative flux", "standard_name": r'$F_\mathrm{rad}$'},
 }
 
 MOMENT_GROUPS = {

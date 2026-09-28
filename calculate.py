@@ -3,7 +3,8 @@ import xarray as xr
 import numpy as np
 
 # could use formulas from libcloud via python bindings, but this would introduce dependency issues
-L_evap = 2264.76e3 # latent heat of evaporation [J/kg]
+# L_evap = 2264.76e3 # latent heat of evaporation [J/kg]
+L_evap = 2.5e6 # latent heat of evaporation [J/kg]
 R_d = 287.052874 # specific gas constant for dry air [J/kg/K]
 c_pd = 1005 # specific heat capacity [J/kg/K]
 
@@ -31,6 +32,7 @@ def calc_all(ds):
     .pipe(calc_lwp) \
     .pipe(calc_rwp) \
     .pipe(calc_tau) \
+    .pipe(calc_thl) \
     .pipe(calc_albedo)
 
     
@@ -43,6 +45,7 @@ def calc_ra(ds):
         ra=np.nan
     dsn = ds.assign(ra=ra)
     dsn.ra.attrs["units"] = "kg/kg"
+    dsn.ra.attrs["standard_name"] = r'$r_a$'
     dsn.ra.attrs["long_name"] = "humidified aerosol mixing ratio"
     return dsn
 
@@ -56,6 +59,7 @@ def calc_rc(ds):
         rc=ds.rc
     dsn = ds.assign(rc=rc)
     dsn.rc.attrs["units"] = "kg/kg"
+    dsn.rc.attrs["standard_name"] = r'$r_c$'
     dsn.rc.attrs["long_name"] = "cloud water mixing ratio"
     return dsn
 
@@ -70,6 +74,7 @@ def calc_rr(ds):
         rr=ds.rr
     dsn = ds.assign(rr=rr)
     dsn.rr.attrs["units"] = "kg/kg"
+    dsn.rr.attrs["standard_name"] = r'$r_r$'
     dsn.rr.attrs["long_name"] = "rain water mixing ratio"
     return dsn
     
@@ -85,6 +90,7 @@ def calc_rl(ds):
         rl=ds.rr + ds.rc
     dsn = ds.assign(rl=rl)
     dsn.rl.attrs["units"] = "kg/kg"
+    dsn.rl.attrs["standard_name"] = r'$r_l$'
     dsn.rl.attrs["long_name"] = "liquid water mixing ratio"
     return dsn
         
@@ -99,6 +105,7 @@ def calc_rt(ds):
         rt=ds.rr + ds.rc + ds.rv
     dsn = ds.assign(rt=rt)
     dsn.rt.attrs["units"] = "kg/kg"
+    dsn.rt.attrs["standard_name"] = r'$r_t$'
     dsn.rt.attrs["long_name"] = "total water mixing ratio"
     return dsn
     
@@ -116,6 +123,7 @@ def calc_nt(ds):
         
     dsn = ds.assign(nt=nt)
     dsn.nt.attrs["units"] = "1/kg"
+    dsn.nt.attrs["standard_name"] = r'$n_t$'
     dsn.nt.attrs["long_name"] = "concentration of hydrometeors"
     return dsn
     
@@ -129,6 +137,7 @@ def calc_all_r_mean(ds):
         all_r_mean=np.nan
     dsn = ds.assign(all_r_mean=all_r_mean)
     dsn.all_r_mean.attrs["units"] = "m"
+    dsn.all_r_mean.attrs["standard_name"] = r'$\langle r \rangle_a$'
     dsn.all_r_mean.attrs["long_name"] = "mean radius of hydrometeors"
     return dsn
     
@@ -142,6 +151,7 @@ def calc_cloud_r_mean(ds):
         cloud_r_mean=np.nan
     dsn = ds.assign(cloud_r_mean=cloud_r_mean)
     dsn.cloud_r_mean.attrs["units"] = "m"
+    dsn.cloud_r_mean.attrs["standard_name"] = r'$\langle r \rangle_c$'
     dsn.cloud_r_mean.attrs["long_name"] = "mean radius of cloud droplets"
     return dsn
     
@@ -155,6 +165,7 @@ def calc_rain_r_mean(ds):
         rain_r_mean=np.nan
     dsn = ds.assign(rain_r_mean=rain_r_mean)
     dsn.rain_r_mean.attrs["units"] = "m"
+    dsn.rain_r_mean.attrs["standard_name"] = r'$\langle r \rangle_r$'
     dsn.rain_r_mean.attrs["long_name"] = "mean radius of rain drops"
     return dsn
         
@@ -168,6 +179,7 @@ def calc_all_r_sigma(ds):
         all_r_sigma=np.nan
     dsn = ds.assign(all_r_sigma=all_r_sigma)
     dsn.all_r_sigma.attrs["units"] = "m"
+    dsn.all_r_sigma.attrs["standard_name"] = r'$\sigma (r)_a$'
     dsn.all_r_sigma.attrs["long_name"] = "standard deviation of radius of hydrometeors"
     return dsn
     
@@ -181,6 +193,7 @@ def calc_cloud_r_sigma(ds):
         cloud_r_sigma=np.nan
     dsn = ds.assign(cloud_r_sigma=cloud_r_sigma)
     dsn.cloud_r_sigma.attrs["units"] = "m"
+    dsn.cloud_r_sigma.attrs["standard_name"] = r'$\sigma (r)_c$'
     dsn.cloud_r_sigma.attrs["long_name"] = "standard deviation of radius of hydrometeors"
     return dsn
     
@@ -194,6 +207,7 @@ def calc_rain_r_sigma(ds):
         rain_r_sigma=np.nan
     dsn = ds.assign(rain_r_sigma=rain_r_sigma)
     dsn.rain_r_sigma.attrs["units"] = "m"
+    dsn.rain_r_sigma.attrs["standard_name"] = r'$\sigma (r)_r$'
     dsn.rain_r_sigma.attrs["long_name"] = "standard deviation of radius of hydrometeors"
     return dsn
     
@@ -205,6 +219,7 @@ def calc_na(ds):
         na=np.nan
     dsn = ds.assign(na=na)
     dsn.na.attrs["units"] = "1/kg"
+    dsn.na.attrs["standard_name"] = r'$n_a$'
     dsn.na.attrs["long_name"] = "number concentration of aerosols"
     return dsn
         
@@ -218,6 +233,7 @@ def calc_nc(ds):
             nc=np.nan
         dsn = ds.assign(nc=nc)
     dsn.nc.attrs["units"] = "1/kg"
+    dsn.nc.attrs["standard_name"] = r'$n_c$'
     dsn.nc.attrs["long_name"] = "number concentration of cloud droplets"
     return dsn
 
@@ -231,6 +247,7 @@ def calc_nr(ds):
             nr=np.nan
         dsn = ds.assign(nr=nr)
     dsn.nr.attrs["units"] = "1/kg"
+    dsn.nr.attrs["standard_name"] = r'$n_r$'
     dsn.nr.attrs["long_name"] = "number concentration of rain drops"
     return dsn
     
@@ -244,6 +261,7 @@ def calc_ni(ds):
             ni=np.nan
         dsn = ds.assign(ni=ni)
     dsn.ni.attrs["units"] = "1/kg"
+    dsn.ni.attrs["standard_name"] = r'$n_i$'
     dsn.ni.attrs["long_name"] = "number concentration of ice crystals"
     return dsn
 
@@ -255,8 +273,9 @@ def calc_all_r_m6(ds):
     else:
         all_r_m6=np.nan
     dsn = ds.assign(all_r_m6=all_r_m6)
-    dsn.nr.attrs["units"] = "m$^6$/m$^3$"
-    dsn.nr.attrs["long_name"] = "6th moment of hydrometeor radius per unit volume"
+    dsn.all_r_m6.attrs["units"] = "m$^6$/m$^3$"
+    dsn.all_r_m6.attrs["standard_name"] = r'$r_6$'
+    dsn.all_r_m6.attrs["long_name"] = "6th moment of hydrometeor radius per unit volume"
     return dsn    
 
 def calc_cloud_base(ds, cond):
@@ -322,6 +341,7 @@ def calc_lwp(ds):
         ds = calc_rl(ds)
     lwp = (ds.rl * ds['rhod']).sum(["z"]) * ds.dz    
     lwp.attrs["units"] = "kg/m$^2$"
+    lwp.attrs["standard_name"] = "LWP"
     lwp.attrs["long_name"] = "liquid water path"
     return ds.assign(lwp = lwp)
     
@@ -331,6 +351,7 @@ def calc_cwp(ds):
         ds = calc_rc(ds)
     cwp = (ds.rc * ds['rhod']).sum(["z"]) * ds.dz    
     cwp.attrs["units"] = "kg/m$^2$"
+    cwp.attrs["standard_name"] = "CWP"
     cwp.attrs["long_name"] = "cloud water path"
     return ds.assign(cwp = cwp)
     
@@ -340,6 +361,7 @@ def calc_rwp(ds):
         ds = calc_rr(ds)
     rwp = (ds.rr * ds['rhod']).sum(["z"]) * ds.dz    
     rwp.attrs["units"] = "kg/m$^2$"
+    rwp.attrs["standard_name"] = "RWP"
     rwp.attrs["long_name"] = "rain water path"
     return ds.assign(rwp = rwp)
 
@@ -347,6 +369,7 @@ def calc_rwp(ds):
 def calc_zi(ds, cond):
     zi=ds.z.where(cond).idxmin(dim='z')
     zi.attrs["units"] = "m"
+    zi.attrs["standard_name"] = r'$z_i$'
     zi.attrs["long_name"] = "inversion height"
     return ds.assign(zi = zi)
 #    return ds.assign(zi=lambda x: x.z.where(cond).idxmin(dim='z'))
@@ -355,13 +378,23 @@ def calc_zi(ds, cond):
 def calc_temp(ds):
     temp = ds.th * pow(ds.p_e / 1e5, R_d / c_pd) # could use formulas from libcloud via python bindings, but this would introduce dependency issues
     temp.attrs["units"] = "K"
+    temp.attrs["standard_name"] = r'$T$'
     temp.attrs["long_name"] = "temperature"
     return ds.assign(temp = temp)
+    
+# liquid-water potential temperature [K]
+def calc_thl(ds):
+    thl = ds.th - L_evap / c_pd / pow(ds.p_e / 1e5, R_d / c_pd) * ds.rl
+    thl.attrs["units"] = "K"
+    thl.attrs["standard_name"] = r'$\theta_l$'
+    thl.attrs["long_name"] = "liquid-water potential temperature"
+    return ds.assign(thl = thl)
 
 # relative humidity
 def calc_RH(ds):
     if ds.microphysics == "super-droplets":
         ds.RH.attrs["units"] = "1"
+        ds.RH.attrs["standard_name"] = r'$RH$'
         ds.RH.attrs["long name"] = "relative humidity"
         return ds # in lgrngn microphysics RH is stored, calculated based on the RH_formula option
     else:
@@ -370,6 +403,7 @@ def calc_RH(ds):
         rv_s_tet = 380 / (ds.p_e * np.exp(-17.2693882 * T_C  / (ds.temp - 35.86)) - 610.9)
         RH = ds.rv / rv_s_tet
         RH.attrs["units"] = "1"
+        RH.attrs["standard_name"] = r'$RH$'
         RH.attrs["long name"] = "relative humidity"
         return ds.assign(RH = RH)
 
@@ -379,6 +413,7 @@ def calc_tau(ds, r_e=15e-6): # re is effective radius. TODO: in SDM (and in bulk
         ds = calc_lwp(ds)
     tau = 3./2 * ds.lwp / r_e / 1e3 # LWP shuld be before convert_units, so in kg/m2
     tau.attrs["units"] = "1"
+    tau.attrs["standard_name"] = r'$\tau$'
     tau.attrs["long name"] = "optical thickness"
     return ds.assign(tau = tau)
 
@@ -387,5 +422,6 @@ def calc_albedo(ds):
         ds = calc_tau(ds)
     albedo = ds.tau / (13 + ds.tau) # Zhou et al. 2018, for stratocumulus
     albedo.attrs["units"] = "1"
+    albedo.attrs["standard_name"] = r'albedo'
     albedo.attrs["long name"] = "pseudo-albedo (Sc formula)"
     return ds.assign(albedo = albedo)
